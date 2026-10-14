@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDF Trans Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+Myanmar:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{
+  --bg:#f5f4f0;--panel:#ffffff;--panel2:#faf9f6;--text:#1d1d1f;--muted:#6b6b72;--border:#e3e1db;
+  --accent:#2f6fde;--accent-soft:#e6eefc;--accent-ink:#fff;
+  --todo:#a3a3a8;--draft:#d08a12;--ok:#1f9d55;--keep:#7a5cc7;--danger:#c93c3c;
+  --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.05);
+  --fs:16px;
+  --font:'Inter','Noto Sans Myanmar','Myanmar Text',system-ui,sans-serif;
+  --font-tr:'Noto Sans Myanmar','Myanmar Text','Padauk','Inter',system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#141416;--panel:#1c1c1f;--panel2:#212125;--text:#ececef;--muted:#9a9aa3;--border:#2e2e33;
+    --accent:#6b9cff;--accent-soft:#1f2a40;--accent-ink:#0d1222;
+    --todo:#6d6d75;--draft:#e0a33a;--ok:#3cc07a;--keep:#a58bf0;--danger:#ef6b6b;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141416;--panel:#1c1c1f;--panel2:#212125;--text:#ececef;--muted:#9a9aa3;--border:#2e2e33;
+  --accent:#6b9cff;--accent-soft:#1f2a40;--accent-ink:#0d1222;
+  --todo:#6d6d75;--draft:#e0a33a;--ok:#3cc07a;--keep:#a58bf0;--danger:#ef6b6b;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 16px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--border);background:var(--panel);border-radius:8px;padding:6px 12px;white-space:nowrap}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:default}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.ghost{background:transparent;border-color:transparent}
+button.ghost:hover{background:var(--panel2)}
+button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+button.danger{color:var(--danger)}
+.hidden{display:none!important}
+
+header{display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
+.brand{font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;cursor:pointer}
+.brand i{width:22px;height:22px;border-radius:6px;background:var(--accent);display:inline-block;position:relative}
+.brand i::after{content:"";position:absolute;inset:6px 5px;border-top:2px solid var(--accent-ink);border-bottom:2px solid var(--accent-ink)}
+#bookTitle{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+.hgroup{display:flex;gap:6px;align-items:center}
+
+/* Library */
+#library{max-width:960px;margin:0 auto;padding:24px 16px}
+#drop{border:2px dashed var(--border);border-radius:14px;padding:36px 16px;text-align:center;background:var(--panel);transition:.15s}
+#drop.over{border-color:var(--accent);background:var(--accent-soft)}
+#drop h2{margin:0 0 6px;font-size:18px}
+#drop p{margin:0 0 14px;color:var(--muted)}
+.libhead{display:flex;justify-content:space-between;align-items:center;margin:28px 0 10px}
+.libhead h3{margin:0;font-size:15px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px}
+.card .name{font-weight:600;word-break:break-word}
+.card .meta{color:var(--muted);font-size:12px}
+.card .actions{display:flex;gap:6px;margin-top:4px}
+.bar{height:6px;border-radius:3px;background:var(--panel2);overflow:hidden;display:flex}
+.bar span{display:block;height:100%}
+.empty{color:var(--muted);text-align:center;padding:24px}
+#progress{margin-top:12px;color:var(--muted)}
+
+/* Editor */
+#editor{display:grid;grid-template-columns:220px 1fr;height:calc(100vh - 53px)}
+#side{border-right:1px solid var(--border);background:var(--panel);overflow:auto;padding:10px 8px}
+#side .sum{padding:4px 6px 10px;color:var(--muted);font-size:12px}
+#side .sum .bar{margin-top:6px}
+.pg{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:7px;cursor:pointer;font-size:13px}
+.pg:hover{background:var(--panel2)}
+.pg.cur{background:var(--accent-soft);color:var(--accent);font-weight:500}
+.pg small{margin-left:auto;color:var(--muted);font-size:11px}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.st-todo{background:var(--todo)}.st-draft{background:var(--draft)}.st-reviewed{background:var(--ok)}.st-original{background:var(--keep)}
+#main{display:flex;flex-direction:column;min-width:0;min-height:0}
+#tool{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--panel)}
+#tool .sep{flex:1}
+#pageSel{display:none;border:1px solid var(--border);border-radius:8px;padding:5px;background:var(--panel)}
+#saveState{color:var(--muted);font-size:12px;min-width:60px;text-align:right}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0}
+#content{flex:1;overflow:auto;padding:16px}
+.colhead{display:grid;grid-template-columns:1fr 1fr;gap:16px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding:0 2px 8px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:10px}
+.src{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:var(--fs);line-height:1.65;position:relative;user-select:text;word-break:break-word}
+.src .bact{position:absolute;top:4px;right:4px;display:none;gap:2px}
+.src:hover .bact{display:flex}
+.src .bact button{padding:1px 7px;font-size:11px}
+.num{color:var(--muted);font-size:11px;margin-right:6px;user-select:none}
+textarea.tr{width:100%;resize:none;overflow:hidden;min-height:46px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--panel);font-family:var(--font-tr);font-size:var(--fs);line-height:1.85}
+textarea.tr:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.locked textarea.tr{opacity:.6}
+.pagemode{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.canvasWrap{position:sticky;top:0;background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;min-height:200px}
+.canvasWrap canvas{display:block}
+.pmItem{margin-bottom:12px}
+.pmItem .cap{font-size:12px;color:var(--muted);margin-bottom:4px;max-height:3.2em;overflow:hidden}
+.banner{padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:13px}
+.banner.keep{background:color-mix(in srgb,var(--keep) 14%,transparent);color:var(--keep)}
+.banner.ok{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+
+/* Modal */
+dialog{border:1px solid var(--border);border-radius:14px;background:var(--panel);color:var(--text);padding:0;width:min(640px,calc(100vw - 32px));box-shadow:var(--shadow)}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+.mhead{padding:14px 18px;border-bottom:1px solid var(--border);font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.mbody{padding:16px 18px;display:flex;flex-direction:column;gap:12px;max-height:70vh;overflow:auto}
+.mfoot{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.mbody textarea{width:100%;min-height:150px;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--panel2);font-family:var(--font-tr);font-size:13px}
+.mbody input[type=text]{width:100%;border:1px solid var(--border);border-radius:8px;padding:7px 10px;background:var(--panel2)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:12px;color:var(--muted)}
+.opts label{display:flex;gap:8px;align-items:center;padding:4px 0}
+.warn{background:color-mix(in srgb,var(--draft) 15%,transparent);border-radius:8px;padding:10px 12px;font-size:13px}
+.hint{color:var(--muted);font-size:12px}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;transition:.2s;pointer-events:none;z-index:50}
+#toast.show{opacity:1}
+
+@media (max-width:800px){
+  #editor{grid-template-columns:1fr}
+  #side{display:none}
+  #pageSel{display:inline-block}
+  .row,.pagemode,.colhead{grid-template-columns:1fr;gap:6px}
+  .colhead{display:none}
+  .row{margin-bottom:18px}
+  .canvasWrap{position:static}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .hlabel{display:none}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand" id="home"><i></i>PDF Trans Studio</div>
+  <div id="bookTitle"></div>
+  <div class="hgroup">
+    <button class="ghost hidden" id="btnAI" title="AI ဖြင့် ဘာသာပြန်ရန် prompt">✨ <span class="hlabel">AI</span></button>
+    <button class="ghost hidden" id="btnExport">⇩ <span class="hlabel">Export</span></button>
+    <button class="ghost" id="fsDown" title="စာလုံးသေး">A−</button>
+    <button class="ghost" id="fsUp" title="စာလုံးကြီး">A+</button>
+    <button class="ghost" id="themeBtn" title="Theme">◐</button>
+  </div>
+</header>
+
+<section id="library">
+  <div id="drop">
+    <h2>PDF ဖိုင်ကို ဒီနေရာသို့ ဆွဲထည့်ပါ</h2>
+    <p>ဖိုင်တွေက သင့်ကွန်ပျူတာ (browser) ထဲမှာပဲ သိမ်းထားပါတယ်။ Server ကို မပို့ပါ။</p>
+    <button class="primary" id="pickBtn">PDF ရွေးမယ်</button>
+    <input type="file" id="fileIn" accept="application/pdf,.pdf" hidden>
+    <div id="progress"></div>
+  </div>
+  <div class="libhead">
+    <h3>စာကြည့်တိုက်</h3>
+    <div class="hgroup">
+      <button id="restoreBtn">Backup ပြန်သွင်း</button>
+      <input type="file" id="restoreIn" accept=".json,application/json" hidden>
+    </div>
+  </div>
+  <div class="cards" id="cards"></div>
+</section>
+
+<section id="editor" class="hidden">
+  <aside id="side"></aside>
+  <div id="main">
+    <div id="tool">
+      <button id="prevBtn" title="Alt+←">‹</button>
+      <select id="pageSel"></select>
+      <strong id="pageLbl"></strong>
+      <button id="nextBtn" title="Alt+→">›</button>
+      <div class="seg">
+        <button id="modeText" class="on">စာသား</button>
+        <button id="modePage">စာမျက်နှာ</button>
+      </div>
+      <span class="sep"></span>
+      <button id="keepBtn" title="ဒီစာမျက်နှာကို မူရင်းအတိုင်းထား">မူရင်းထား</button>
+      <button id="reviewBtn" title="စစ်ပြီးကြောင်း မှတ်">✓ စစ်ပြီး</button>
+      <span id="saveState"></span>
+    </div>
+    <div id="content"></div>
+  </div>
+</section>
+
+<dialog id="aiDlg">
+  <div class="mhead">AI ဖြင့် ဘာသာပြန်ခြင်း <button class="ghost" data-close>✕</button></div>
+  <div class="mbody">
+    <div class="hint">① Prompt ကို copy လုပ်ပြီး Claude / ChatGPT စသည်တို့ထဲ ထည့်ပါ။ ② ရလာတဲ့ အဖြေကို အောက်မှာ paste လုပ်ပြီး "ထည့်မယ်" နှိပ်ပါ။ အကွက်ထဲ စာရှိပြီးသားဆိုရင် အစားထိုးမှာ မဟုတ်ပါ (ဗလာ အကွက်တွေကိုပဲ ဖြည့်ပါမယ်)။</div>
+    <label>ဘာသာပြန်မည့် ဘာသာ<input type="text" id="aiLang"></label>
+    <textarea id="aiPrompt" readonly></textarea>
+    <div><button id="aiCopy">Prompt copy</button></div>
+    <textarea id="aiResult" placeholder="[1] ...&#10;[2] ..."></textarea>
+    <div class="opts"><label><input type="checkbox" id="aiOverwrite"> စာရှိပြီးသား အကွက်တွေကိုလည်း အစားထိုးမယ်</label></div>
+  </div>
+  <div class="mfoot"><button data-close>ပိတ်</button><button class="primary" id="aiApply">ထည့်မယ်</button></div>
+</dialog>
+
+<dialog id="exDlg">
+  <div class="mhead">Export <button class="ghost" data-close>✕</button></div>
+  <div class="mbody">
+    <div class="stats" id="exStats"></div>
+    <div class="opts">
+      <label><input type="radio" name="fmt" value="print" checked> PDF (Print → Save as PDF)</label>
+      <label><input type="radio" name="fmt" value="doc"> Microsoft Word (.doc)</label>
+      <label><input type="radio" name="fmt" value="txt"> Text (.txt)</label>
+      <label><input type="radio" name="fmt" value="json"> Backup (.json) — နောက်မှ ပြန်သွင်းလို့ရ</label>
+    </div>
+    <div class="opts"><label><input type="checkbox" id="exBi"> မူရင်းနဲ့ ဘာသာပြန် နှစ်မျိုးလုံးထည့် (bilingual)</label></div>
+    <div id="exWarn" class="warn hidden">
+      <div id="exWarnTxt"></div>
+      <label style="display:flex;gap:8px;margin-top:6px"><input type="checkbox" id="exAck"> မပြီးသေးတဲ့ အပိုင်းတွေကို မူရင်းစာအတိုင်း ထည့်ပြီး Draft အဖြစ် export လုပ်မယ်</label>
+    </div>
+  </div>
+  <div class="mfoot"><button data-close>ပိတ်</button><button class="primary" id="exGo">Export</button></div>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pref = {
+  get(k, d){ try{ const v = localStorage.getItem('pdftrans.'+k); return v === null ? d : JSON.parse(v); }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem('pdftrans.'+k, JSON.stringify(v)); }catch{} }
+};
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast.t); toast.t=setTimeout(()=>t.classList.remove('show'),2200); }
+
+/* ---------- IndexedDB ---------- */
+const dbp = new Promise((res, rej) => {
+  const r = indexedDB.open('pdftrans', 1);
+  r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('books', {keyPath:'id'}); d.createObjectStore('files'); };
+  r.onsuccess = () => res(r.result);
+  r.onerror = () => rej(r.error);
+});
+async function req(store, mode, fn){
+  const d = await dbp;
+  return new Promise((res, rej) => {
+    const t = d.transaction(store, mode); const r = fn(t.objectStore(store));
+    t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error);
+  });
+}
+const dbGet = (s,k) => req(s,'readonly',x=>x.get(k));
+const dbPut = (s,v,k) => req(s,'readwrite',x=>k===undefined?x.put(v):x.put(v,k));
+const dbDel = (s,k) => req(s,'readwrite',x=>x.delete(k));
+const dbAll = s => req(s,'readonly',x=>x.getAll());
+
+/* ---------- Model helpers ---------- */
+// page.status: null | 'reviewed' | 'original'  →  display: todo | draft | reviewed | original
+function pageState(p){
+  if (p.status) return p.status;
+  return p.blocks.some(b => b.tr.trim()) ? 'draft' : 'todo';
+}
+const STATE_LABEL = {todo:'မစရသေး', draft:'ပြင်ဆဲ', reviewed:'စစ်ပြီး', original:'မူရင်းထား'};
+function counts(book){
+  const c = {todo:0, draft:0, reviewed:0, original:0};
+  book.pages.forEach(p => c[pageState(p)]++);
+  return c;
+}
+function barHTML(c, total){
+  return `<div class="bar">${['reviewed','original','draft'].map(k =>
+    `<span class="st-${k}" style="width:${total ? c[k]/total*100 : 0}%"></span>`).join('')}</div>`;
+}
+
+/* ---------- PDF text extraction ---------- */
+// Lines follow pdf.js content-stream order (keeps columns together); paragraphs break on large vertical gaps or font-size changes.
+async function extractPage(page){
+  const tc = await page.getTextContent();
+  const lines = []; let cur = null;
+  for (const it of tc.items){
+    if (typeof it.str !== 'string') continue;
+    const x = it.transform[4], y = it.transform[5];
+    const h = Math.abs(it.transform[3]) || it.height || 10;
+    if (!it.str.trim()){ if (cur && it.str) cur.text += ' '; continue; }
+    if (!cur || Math.abs(cur.y - y) > Math.max(cur.h, h) * 0.5){
+      cur = {y, h, end:x, text:''}; lines.push(cur);
+    }
+    if (cur.text && x - cur.end > h * 0.15 && !/\s$/.test(cur.text) && !/^\s/.test(it.str)) cur.text += ' ';
+    cur.text += it.str; cur.end = x + (it.width || 0); cur.h = Math.max(cur.h, h);
+  }
+  const paras = []; let p = null, prev = null;
+  for (const l of lines){
+    const t = l.text.replace(/\s+/g, ' ').trim();
+    if (!t) continue;
+    const gap = prev ? prev.y - l.y : 0;
+    const brk = !p || gap < 0 || gap > Math.max(prev.h, l.h) * 1.7 || Math.abs(l.h - prev.h) > prev.h * 0.25;
+    if (brk){ p = {src:t, tr:''}; paras.push(p); }
+    else if (/[A-Za-z]-$/.test(p.src)) p.src = p.src.slice(0, -1) + t;
+    else p.src += ' ' + t;
+    prev = l;
+  }
+  return paras;
+}
+
+async function importPDF(file){
+  const prog = $('#progress');
+  try{
+    const buf = await file.arrayBuffer();
+    const stored = buf.slice(0);
+    prog.textContent = 'PDF ဖွင့်နေသည်…';
+    const pdf = await pdfjsLib.getDocument({data:new Uint8Array(buf)}).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++){
+      prog.textContent = `စာသား ထုတ်နေသည်… ${i} / ${pdf.numPages}`;
+      const page = await pdf.getPage(i);
+      pages.push({status:null, blocks:await extractPage(page)});
+      page.cleanup();
+    }
+    pdf.destroy();
+    const empty = pages.filter(p => !p.blocks.length).length;
+    const book = {
+      id: 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      name: file.name.replace(/\.pdf$/i, ''), created: Date.now(), updated: Date.now(), pages
+    };
+    await dbPut('files', stored, book.id);
+    await dbPut('books', book);
+    prog.textContent = '';
+    if (empty === pages.length) toast('စာသား မတွေ့ပါ — scan ဖတ်ထားတဲ့ PDF ဖြစ်နိုင်ပါတယ် (OCR လိုပါတယ်)');
+    else if (empty) toast(`စာသားမပါတဲ့ စာမျက်နှာ ${empty} ခု ရှိပါတယ်`);
+    openBook(book.id);
+  }catch(e){
+    console.error(e);
+    prog.textContent = 'ဖွင့်လို့ မရပါ: ' + (e.message || e);
+  }
+}
+
+/* ---------- Library ---------- */
+async function renderLibrary(){
+  showView('library');
+  const books = (await dbAll('books')).sort((a,b) => b.updated - a.updated);
+  const el = $('#cards');
+  if (!books.length){ el.innerHTML = '<div class="empty">PDF မရှိသေးပါ</div>'; return; }
+  el.innerHTML = books.map(b => {
+    const c = counts(b), n = b.pages.length;
+    return `<div class="card">
+      <div class="name">${esc(b.name)}</div>
+      <div class="meta">${n} မျက်နှာ · စစ်ပြီး ${c.reviewed} · မူရင်းထား ${c.original} · ပြင်ဆဲ ${c.draft} · ${new Date(b.updated).toLocaleString()}</div>
+      ${barHTML(c, n)}
+      <div class="actions"><button class="primary" data-open="${b.id}">ဖွင့်မယ်</button><button class="danger ghost" data-del="${b.id}">ဖျက်မယ်</button></div>
+    </div>`;
+  }).join('');
+}
+$('#cards').addEventListener('click', async e => {
+  const o = e.target.closest('[data-open]'), d = e.target.closest('[data-del]');
+  if (o) openBook(o.dataset.open);
+  if (d && confirm('ဒီစာအုပ်နဲ့ ဘာသာပြန်ထားသမျှ အကုန်ဖျက်မှာ သေချာပါသလား?')){
+    await dbDel('books', d.dataset.del); await dbDel('files', d.dataset.del); renderLibrary();
+  }
+});
+$('#pickBtn').onclick = () => $('#fileIn').click();
+$('#fileIn').onchange = e => { const f = e.target.files[0]; if (f) importPDF(f); e.target.value = ''; };
+const drop = $('#drop');
+['dragenter','dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => {
+  const f = [...e.dataTransfer.files].find(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
+  if (f) importPDF(f); else toast('PDF ဖိုင်သာ လက်ခံပါတယ်');
+});
+$('#restoreBtn').onclick = () => $('#restoreIn').click();
+$('#restoreIn').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try{
+    const data = JSON.parse(await f.text());
+    if (!data.book || !Array.isArray(data.book.pages)) throw new Error('format');
+    const book = data.book; book.updated = Date.now();
+    if (data.pdf){
+      const bin = atob(data.pdf), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      await dbPut('files', bytes.buffer, book.id);
+    }
+    await dbPut('books', book);
+    toast('Backup ပြန်သွင်းပြီးပါပြီ'); renderLibrary();
+  }catch(err){ toast('Backup ဖိုင် မမှန်ပါ'); }
+};
+
+/* ---------- Editor ---------- */
+const S = {book:null, page:0, mode:'text', pdf:null, saveT:null, dirty:false, renderTok:0};
+
+function showView(v){
+  $('#library').classList.toggle('hidden', v !== 'library');
+  $('#editor').classList.toggle('hidden', v !== 'editor');
+  ['#btnAI','#btnExport'].forEach(s => $(s).classList.toggle('hidden', v !== 'editor'));
+  if (v === 'library'){ $('#bookTitle').textContent = ''; }
+}
+async function openBook(id){
+  await flushSave();
+  if (S.pdf){ S.pdf.destroy(); S.pdf = null; }
+  S.book = await dbGet('books', id);
+  if (!S.book) return renderLibrary();
+  S.page = Math.min(S.book.lastPage || 0, S.book.pages.length - 1);
+  $('#bookTitle').textContent = S.book.name;
+  showView('editor');
+  renderSide(); renderPage();
+}
+function renderSide(){
+  const b = S.book, c = counts(b), n = b.pages.length;
+  $('#side').innerHTML = `<div class="sum">${c.reviewed + c.original} / ${n} ပြီး${barHTML(c, n)}</div>` +
+    b.pages.map((p,i) => {
+      const st = pageState(p);
+      return `<div class="pg${i === S.page ? ' cur' : ''}" data-i="${i}" title="${STATE_LABEL[st]}"><span class="dot st-${st}"></span>စာမျက်နှာ ${i+1}<small>${p.blocks.length}</small></div>`;
+    }).join('');
+  $('#pageSel').innerHTML = b.pages.map((p,i) => `<option value="${i}"${i === S.page ? ' selected' : ''}>${i+1} · ${STATE_LABEL[pageState(p)]}</option>`).join('');
+}
+function updateSideItem(i){
+  const st = pageState(S.book.pages[i]);
+  const el = $(`#side .pg[data-i="${i}"] .dot`);
+  if (el && !el.classList.contains('st-' + st)){ renderSide(); }
+}
+$('#side').addEventListener('click', e => { const p = e.target.closest('.pg'); if (p) goPage(+p.dataset.i); });
+$('#pageSel').onchange = e => goPage(+e.target.value);
+function goPage(i){
+  if (i < 0 || i >= S.book.pages.length) return;
+  S.page = i; S.book.lastPage = i; scheduleSave();
+  renderSide(); renderPage();
+  $('#content').scrollTop = 0;
+  $(`#side .pg[data-i="${i}"]`)?.scrollIntoView({block:'nearest'});
+}
+$('#prevBtn').onclick = () => goPage(S.page - 1);
+$('#nextBtn').onclick = () => goPage(S.page + 1);
+$('#modeText').onclick = () => { S.mode = 'text'; renderPage(); };
+$('#modePage').onclick = () => { S.mode = 'page'; renderPage(); };
+$('#keepBtn').onclick = () => setStatus('original');
+$('#reviewBtn').onclick = () => setStatus('reviewed');
+function setStatus(s){
+  const p = S.book.pages[S.page];
+  p.status = p.status === s ? null : s;
+  scheduleSave(); renderSide(); renderPage();
+}
+
+function autosize(ta){ ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 2 + 'px'; }
+function makeTA(block, idx){
+  const ta = document.createElement('textarea');
+  ta.className = 'tr'; ta.value = block.tr; ta.dataset.idx = idx;
+  ta.placeholder = 'ဘာသာပြန် ရေးရန်…'; ta.spellcheck = false;
+  ta.addEventListener('input', () => {
+    block.tr = ta.value; autosize(ta);
+    scheduleSave(); updateSideItem(S.page);
+  });
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
+      e.preventDefault();
+      const next = $(`#content textarea.tr[data-idx="${idx + 1}"]`);
+      if (next){ next.focus(); next.scrollIntoView({block:'center', behavior:'smooth'}); }
+      else if (S.page < S.book.pages.length - 1){ goPage(S.page + 1); setTimeout(() => $('#content textarea.tr')?.focus(), 50); }
+    }
+  });
+  return ta;
+}
+
+function renderPage(){
+  const b = S.book, p = b.pages[S.page], st = pageState(p);
+  $('#pageLbl').textContent = `${S.page + 1} / ${b.pages.length}`;
+  $('#prevBtn').disabled = S.page === 0;
+  $('#nextBtn').disabled = S.page === b.pages.length - 1;
+  $('#modeText').classList.toggle('on', S.mode === 'text');
+  $('#modePage').classList.toggle('on', S.mode === 'page');
+  $('#keepBtn').classList.toggle('on', p.status === 'original');
+  $('#reviewBtn').classList.toggle('on', p.status === 'reviewed');
+
+  const c = $('#content'); c.innerHTML = '';
+  c.classList.toggle('locked', p.status === 'original');
+  if (st === 'original') c.insertAdjacentHTML('beforeend', '<div class="banner keep">ဒီစာမျက်နှာကို မူရင်းဘာသာအတိုင်း ထားမယ်လို့ မှတ်ထားပါတယ်။ Export မှာ မူရင်းစာ ထွက်ပါမယ်။</div>');
+  if (st === 'reviewed') c.insertAdjacentHTML('beforeend', '<div class="banner ok">ဒီစာမျက်နှာကို စစ်ပြီးပါပြီ။</div>');
+
+  if (!p.blocks.length && S.mode === 'text'){
+    c.insertAdjacentHTML('beforeend', '<div class="empty">ဒီစာမျက်နှာမှာ ထုတ်ယူလို့ရတဲ့ စာသား မရှိပါ (ပုံ သို့မဟုတ် scan ဖြစ်နိုင်ပါတယ်)။ "စာမျက်နှာ" ကိုနှိပ်ပြီး ကြည့်နိုင်ပါတယ်။</div>');
+    return;
+  }
+
+  if (S.mode === 'text'){
+    c.insertAdjacentHTML('beforeend', '<div class="colhead"><div>မူရင်း</div><div>ဘာသာပြန်</div></div>');
+    p.blocks.forEach((bl, i) => {
+      const row = document.createElement('div'); row.className = 'row';
+      const src = document.createElement('div'); src.className = 'src';
+      src.innerHTML = `<span class="num">${i+1}</span>${esc(bl.src)}<span class="bact">${i < p.blocks.length - 1 ? `<button data-merge="${i}" title="နောက်အပိုဒ်နဲ့ ပေါင်း">⤓ ပေါင်း</button>` : ''}<button data-split="${i}" title="ဝါကျအလိုက် ခွဲ">✂ ခွဲ</button><button data-rm="${i}" title="ဖျက်">✕</button></span>`;
+      row.append(src, makeTA(bl, i));
+      c.append(row);
+    });
+  } else {
+    const wrap = document.createElement('div'); wrap.className = 'pagemode';
+    const cw = document.createElement('div'); cw.className = 'canvasWrap';
+    const right = document.createElement('div');
+    p.blocks.forEach((bl, i) => {
+      const it = document.createElement('div'); it.className = 'pmItem';
+      it.innerHTML = `<div class="cap"><span class="num">${i+1}</span>${esc(bl.src)}</div>`;
+      it.append(makeTA(bl, i)); right.append(it);
+    });
+    wrap.append(cw, right); c.append(wrap);
+    renderCanvas(cw);
+  }
+  requestAnimationFrame(() => c.querySelectorAll('textarea.tr').forEach(autosize));
+}
+
+$('#content').addEventListener('click', e => {
+  const p = S.book.pages[S.page];
+  const m = e.target.closest('[data-merge]'), r = e.target.closest('[data-rm]'), sp = e.target.closest('[data-split]');
+  if (m){
+    const i = +m.dataset.merge, a = p.blocks[i], b = p.blocks[i+1];
+    a.src = a.src + ' ' + b.src;
+    a.tr = [a.tr, b.tr].filter(s => s.trim()).join(' ');
+    p.blocks.splice(i+1, 1);
+  } else if (r){
+    if (!confirm('ဒီအပိုဒ်ကို ဖျက်မှာ သေချာပါသလား?')) return;
+    p.blocks.splice(+r.dataset.rm, 1);
+  } else if (sp){
+    const i = +sp.dataset.split, bl = p.blocks[i];
+    const parts = bl.src.match(/[^.!?။]+[.!?။]+["'”’)\]]*\s*|[^.!?။]+$/g)?.map(s => s.trim()).filter(Boolean) || [];
+    if (parts.length < 2){ toast('ခွဲစရာ ဝါကျ မတွေ့ပါ'); return; }
+    p.blocks.splice(i, 1, ...parts.map((s, k) => ({src:s, tr: k === 0 ? bl.tr : ''})));
+  } else return;
+  scheduleSave(); renderSide(); renderPage();
+});
+
+async function renderCanvas(cw){
+  const tok = ++S.renderTok;
+  try{
+    if (!S.pdf){
+      const bytes = await dbGet('files', S.book.id);
+      if (!bytes){ cw.innerHTML = '<div class="empty">မူရင်း PDF ဖိုင် မရှိပါ</div>'; return; }
+      S.pdf = await pdfjsLib.getDocument({data:new Uint8Array(bytes)}).promise;
+    }
+    const page = await S.pdf.getPage(S.page + 1);
+    if (tok !== S.renderTok) return;
+    const w = cw.clientWidth || 500, base = page.getViewport({scale:1});
+    const dpr = window.devicePixelRatio || 1, vp = page.getViewport({scale: w / base.width * dpr});
+    const cv = document.createElement('canvas');
+    cv.width = vp.width; cv.height = vp.height; cv.style.width = w + 'px';
+    await page.render({canvasContext:cv.getContext('2d'), viewport:vp}).promise;
+    if (tok !== S.renderTok) return;
+    cw.innerHTML = ''; cw.append(cv);
+  }catch(e){ console.error(e); cw.innerHTML = '<div class="empty">စာမျက်နှာ ပြလို့ မရပါ</div>'; }
+}
+
+/* ---------- Autosave ---------- */
+function scheduleSave(){
+  S.dirty = true; $('#saveState').textContent = 'သိမ်းနေ…';
+  clearTimeout(S.saveT); S.saveT = setTimeout(flushSave, 600);
+}
+async function flushSave(){
+  clearTimeout(S.saveT);
+  if (!S.dirty || !S.book) return;
+  S.dirty = false; S.book.updated = Date.now();
+  try{ await dbPut('books', S.book); $('#saveState').textContent = 'သိမ်းပြီး ✓'; }
+  catch(e){ S.dirty = true; $('#saveState').textContent = 'သိမ်းမရ!'; console.error(e); }
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushSave(); });
+window.addEventListener('beforeunload', e => { if (S.dirty){ flushSave(); e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------- AI prompt ---------- */
+function buildPrompt(){
+  const lang = $('#aiLang').value.trim() || 'Burmese';
+  const p = S.book.pages[S.page];
+  return `Translate the following numbered paragraphs into ${lang}. ` +
+    `Keep the meaning faithful and natural. Keep the same numbering, one paragraph per number, in the format "[n] translation". ` +
+    `Output only the translations, no comments.\n\n` +
+    p.blocks.map((b,i) => `[${i+1}] ${b.src}`).join('\n\n');
+}
+$('#btnAI').onclick = () => {
+  if (!S.book.pages[S.page].blocks.length){ toast('ဒီစာမျက်နှာမှာ စာသား မရှိပါ'); return; }
+  $('#aiLang').value = pref.get('lang', 'Burmese (မြန်မာ)');
+  $('#aiPrompt').value = buildPrompt(); $('#aiResult').value = '';
+  $('#aiDlg').showModal();
+};
+$('#aiLang').oninput = () => { pref.set('lang', $('#aiLang').value); $('#aiPrompt').value = buildPrompt(); };
+$('#aiCopy').onclick = async () => {
+  try{ await navigator.clipboard.writeText($('#aiPrompt').value); toast('Copy ကူးပြီးပါပြီ'); }
+  catch{ $('#aiPrompt').select(); document.execCommand('copy'); toast('Copy ကူးပြီးပါပြီ'); }
+};
+$('#aiApply').onclick = () => {
+  const txt = $('#aiResult').value, p = S.book.pages[S.page], over = $('#aiOverwrite').checked;
+  const re = /^\s*\[(\d+)\]\s*/gm, marks = [];
+  let m; while ((m = re.exec(txt))) marks.push({n:+m[1], start:m.index, body:m.index + m[0].length});
+  if (!marks.length){ toast('[1] [2] ပုံစံ မတွေ့ပါ'); return; }
+  let n = 0;
+  marks.forEach((mk, k) => {
+    const body = txt.slice(mk.body, k + 1 < marks.length ? marks[k+1].start : txt.length).trim();
+    const bl = p.blocks[mk.n - 1];
+    if (bl && body && (over || !bl.tr.trim())){ bl.tr = body; n++; }
+  });
+  $('#aiDlg').close();
+  scheduleSave(); renderSide(); renderPage();
+  toast(`အပိုဒ် ${n} ခု ထည့်ပြီးပါပြီ — ပြန်စစ်ပေးပါ`);
+};
+
+/* ---------- Export ---------- */
+$('#btnExport').onclick = async () => {
+  await flushSave();
+  const b = S.book, c = counts(b), n = b.pages.length;
+  $('#exStats').innerHTML = ['reviewed','original','draft','todo'].map(k =>
+    `<div class="stat"><b style="color:var(--${{reviewed:'ok',original:'keep',draft:'draft',todo:'todo'}[k]})">${c[k]}</b><span>${STATE_LABEL[k]}</span></div>`).join('');
+  const pending = c.draft + c.todo;
+  $('#exWarn').classList.toggle('hidden', !pending);
+  $('#exWarnTxt').textContent = pending ? `စာမျက်နှာ ${n} ခုထဲက ${pending} ခုက မစစ်ရသေးပါ။ အပြည့်အစုံ export လုပ်ဖို့ စာမျက်နှာတိုင်းကို "စစ်ပြီး" သို့မဟုတ် "မူရင်းထား" လို့ မှတ်ပေးရပါမယ်။` : '';
+  $('#exAck').checked = false;
+  syncExportBtn();
+  $('#exDlg').showModal();
+};
+function syncExportBtn(){
+  const fmt = document.querySelector('input[name=fmt]:checked').value;
+  const pending = !$('#exWarn').classList.contains('hidden');
+  $('#exGo').disabled = pending && fmt !== 'json' && !$('#exAck').checked;
+}
+$('#exAck').onchange = syncExportBtn;
+document.querySelectorAll('input[name=fmt]').forEach(r => r.onchange = syncExportBtn);
+
+function exportPages(){
+  // Draft export: untranslated blocks fall back to source text.
+  return S.book.pages.map((p, i) => ({
+    n: i + 1,
+    blocks: p.blocks.map(b => ({src:b.src, tr: p.status === 'original' || !b.tr.trim() ? b.src : b.tr, translated: p.status !== 'original' && !!b.tr.trim()}))
+  }));
+}
+function exportHTML(forWord){
+  const bi = $('#exBi').checked, name = esc(S.book.name);
+  const body = exportPages().map(pg => `<section class="page"><div class="pn">— ${pg.n} —</div>` +
+    pg.blocks.map(b => (bi && b.translated ? `<p class="s">${esc(b.src)}</p>` : '') + `<p>${esc(b.tr).replace(/\n/g,'<br>')}</p>`).join('') +
+    `</section>`).join('');
+  return `<!doctype html><html lang="my"><head><meta charset="utf-8"><title>${name}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Noto Sans Myanmar','Myanmar Text','Padauk',sans-serif;font-size:12pt;line-height:1.9;color:#111;max-width:720px;margin:24px auto;padding:0 16px}
+h1{font-size:18pt;text-align:center}
+.page{${forWord ? '' : 'break-after:page;'}margin-bottom:24px}
+.pn{text-align:center;color:#888;font-size:9pt;margin:12px 0}
+p{margin:0 0 10px;text-align:justify}
+p.s{color:#666;font-size:10pt;margin-bottom:2px}
+@media print{body{margin:0;max-width:none}}
+</style></head><body><h1>${name}</h1>${body}</body></html>`;
+}
+function download(name, data, type){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([data], {type}));
+  a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+$('#exGo').onclick = async () => {
+  const fmt = document.querySelector('input[name=fmt]:checked').value;
+  const pending = !$('#exWarn').classList.contains('hidden');
+  const base = S.book.name + (pending && fmt !== 'json' ? ' (draft)' : '') + ' - translated';
+  if (fmt === 'print'){
+    const w = window.open('', '_blank');
+    if (!w){ toast('Popup ပိတ်ထားပါတယ် — ခွင့်ပြုပေးပါ'); return; }
+    w.document.write(exportHTML(false)); w.document.close();
+    w.onload = () => setTimeout(() => w.print(), 400);
+  } else if (fmt === 'doc'){
+    download(base + '.doc', '﻿' + exportHTML(true), 'application/msword');
+  } else if (fmt === 'txt'){
+    const bi = $('#exBi').checked;
+    const txt = exportPages().map(pg => `--- ${pg.n} ---\n\n` +
+      pg.blocks.map(b => (bi && b.translated ? b.src + '\n' : '') + b.tr).join('\n\n')).join('\n\n');
+    download(base + '.txt', '﻿' + txt, 'text/plain;charset=utf-8');
+  } else {
+    const bytes = new Uint8Array(await dbGet('files', S.book.id) || new ArrayBuffer(0));
+    let bin = ''; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    download(S.book.name + ' - backup.json', JSON.stringify({version:1, book:S.book, pdf:btoa(bin)}), 'application/json');
+  }
+  $('#exDlg').close();
+};
+
+/* ---------- Dialogs, prefs, shortcuts ---------- */
+document.querySelectorAll('dialog').forEach(d => d.addEventListener('click', e => {
+  if (e.target.closest('[data-close]') || e.target === d) d.close();
+}));
+function applyPrefs(){
+  const t = pref.get('theme', null);
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  document.documentElement.style.setProperty('--fs', pref.get('fs', 16) + 'px');
+}
+$('#themeBtn').onclick = () => {
+  const dark = document.documentElement.dataset.theme
+    ? document.documentElement.dataset.theme === 'dark'
+    : matchMedia('(prefers-color-scheme: dark)').matches;
+  pref.set('theme', dark ? 'light' : 'dark'); applyPrefs();
+};
+function bumpFs(d){
+  pref.set('fs', Math.max(12, Math.min(26, pref.get('fs', 16) + d))); applyPrefs();
+  document.querySelectorAll('#content textarea.tr').forEach(autosize);
+}
+$('#fsUp').onclick = () => bumpFs(1);
+$('#fsDown').onclick = () => bumpFs(-1);
+$('#home').onclick = async () => { await flushSave(); if (S.pdf){ S.pdf.destroy(); S.pdf = null; } S.book = null; renderLibrary(); };
+document.addEventListener('keydown', e => {
+  if (!S.book || $('#editor').classList.contains('hidden') || document.querySelector('dialog[open]')) return;
+  if (e.altKey && e.key === 'ArrowRight'){ e.preventDefault(); goPage(S.page + 1); }
+  if (e.altKey && e.key === 'ArrowLeft'){ e.preventDefault(); goPage(S.page - 1); }
+});
+let resizeT;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => { if (S.book && S.mode === 'page') renderPage(); else document.querySelectorAll('#content textarea.tr').forEach(autosize); }, 200);
+});
+
+applyPrefs();
+renderLibrary();
+</script>
+</body>
+</html>
